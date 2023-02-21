@@ -155,7 +155,147 @@ Once its updated, we can run the stimulator.
 cd .. 
 
 # Run stimulator 
+pip install boto3
 python code/ecomm-simulation-app/stream-data-app-simulation.py 
 
 ```
 
+### Integration with Kinesis Data Analytics and Apache Flink
+
+Now, we will create an Amazon Kinesis Data Analytics Streaming Application. Open the AWS Console and then:
+
+- Go to **Amazon Kinesis** 
+- Select **Analytics applications** 
+- Click on **Studio notebooks** 
+- Click on **Create Studio notebook**
+
+![](/img/img8.png)
+
+- Use `ecomm-streaming-app-v1` as the **Studio notebook name** 
+- Under the **Permissions** section, click on `Create` to create an AWS Glue database, name the database as `my-db-ecomm` 
+-  Use the same database, `my-db-ecomm` from the dropdown 
+- Click on **Create Studio notebook** 
+
+![](/img/img9.png)
+
+Now, select the `ecomm-streaming-app-v1` Studio notebook and click on **Open in Apache Zeppelin** 
+
+![](/img/img10.png)
+
+Once the **Zeppelin Dashboard** come up, click on `Import note` and import the [notebook](/code/flink-app/sql-flink-ecomm-notebook-1.zpln)
+
+![](/img/img11.png)
+
+Open the `sql-flink-ecomm-notebook-1` notebook. We are going to use this Zeppelin notebook to create a **Flink Application** but before that lets go over this notebook and see what are we doing in this `Flink SQL code`
+
+- First we are create a `table` for the incoming source of data (which is the `ecommerce-raw-user-activity-stream-1` incoming stream) 
+- Next we are creating another `table` for the filtered data (which is for the `ecommerce-raw-user-activity-stream-2` outgoing stream)
+- And finally we are putting the logic to stimulate the **DDoSS** attack. We are essentially looking into the last 10 seconds of the data and grouping that data by `user_id` and if we notice more than 5 records, we are taking that `user_id` and the no. of records and pushing it to the `ecommerce-raw-user-activity-stream-2` out going stream. Since we are working within a dummy environment, we can set the threshold record to any other number (not just 5, it could be anything), but the idea is to stimulate DDoS attack, and if we see same user (same `user_ud`) is adding/viewing/placing lets say, 5 products in last 10 seconds, we can assume its a DDoS/BOT attack, as it naturally not that feasible. We are hardcoding it just for this demo purpose, but in real world this might be coming dynamically from a configuration file.
+
+
+
+```sql
+
+%flink.ssql
+
+/*Option 'IF NOT EXISTS' can be used, to protect the existing Schema */
+DROP TABLE IF EXISTS ecomm_user_activity_stream_1;
+
+CREATE TABLE ecomm_user_activity_stream_1 (
+  `event_time` VARCHAR(30), 
+  `event_type` VARCHAR(30), 
+  `product_id` BIGINT, 
+  `category_id` BIGINT, 
+  `category_code` VARCHAR(30), 
+  `brand` VARCHAR(30), 
+  `price` DOUBLE, 
+  `user_id` BIGINT, 
+  `user_session` VARCHAR(30),
+  `txn_timestamp` TIMESTAMP(3),
+  WATERMARK FOR txn_timestamp as txn_timestamp - INTERVAL '10' SECOND  
+)
+PARTITIONED BY (category_id)
+WITH (
+  'connector' = 'kinesis',
+  'stream' = 'ecommerce-raw-user-activity-stream-1',
+  'aws.region' = 'us-east-1',
+  'scan.stream.initpos' = 'LATEST',
+  'format' = 'json',
+  'json.timestamp-format.standard' = 'ISO-8601'
+);
+
+/*Option 'IF NOT EXISTS' can be used, to protect the existing Schema */
+DROP TABLE IF EXISTS ecomm_user_activity_stream_2;
+
+CREATE TABLE ecomm_user_activity_stream_2 (
+  `user_id` BIGINT, 
+  `num_actions_per_watermark` BIGINT
+)
+WITH (
+  'connector' = 'kinesis',
+  'stream' = 'ecommerce-raw-user-activity-stream-2',
+  'aws.region' = 'us-east-1',
+  'format' = 'json',
+  'json.timestamp-format.standard' = 'ISO-8601'
+);
+
+/* Inserting aggregation into Stream 2*/
+insert into ecomm_user_activity_stream_2
+select  user_id, count(1) as num_actions_per_watermark
+from ecomm_user_activity_stream_1
+group by tumble(txn_timestamp, INTERVAL '10' SECOND), user_id
+having count(1) > 5;
+
+```
+
+### Create the Apache Flink Application
+
+Now, that we have our notebook imported, we can create the **Flink Application** from the notebook directly. 
+
+- Click on `Actions for ecomm-streaming-app-v1` on the top right corner 
+
+![](/img/img12.png)
+
+- Click on `Build sql-flink-ecomm-notebook-1` and then click on `Build and export`. It will compile all the code, will create a ZIP file and would store on S3 
+
+![](/img/img13.png)
+
+- And now we can deploy that application by simply clicking on `Actions for ecomm-streaming-app-v1` on the top right corner 
+
+- Click on `Deploy sql-flink-ecomm-notebook-1 as Kinesis Analytics application` and then clicking on `Deploy using AWS Console` 
+
+- Scroll down and click on `Save changes` 
+
+![](/img/img14.png)
+
+This is the power of **Kinesis Data Analytics** just from a simple Zeppelin Notebook we can create a real world application without any hindrance. 
+
+- Finally we can start the application by clicking on **Run**. It might take couple of minutes to start the application so please wait till we see **Status** as `Running` 
+
+![](/img/img15.png) 
+
+### Alarming DDoS Attack 
+
+If we revisit our architecture, we will see that we are almost done with the **online processing**, the only thing which is pending is to create a Lambda function which will be triggered whenever there is a record enters the `ecommerce-raw-user-activity-stream-2` stream which will write that data to some **DynamoDB** table and can also send an **SNS** notification. 
+
+![](/img/img16.png) 
+
+Let's first build the code for the Lambda function 
+
+```bash
+# Install the aws_kinesis_agg package
+cd code/serverless-app/
+pip install aws_kinesis_agg -t .
+
+# Build the lambda package and download the zip file.
+zip -r ../lambda-package.zip .
+
+# Upload the zip to S3
+cd ..
+aws s3 cp lambda-package.zip s3://ecommerce-raw-us-east-1-dev/src/lambda/
+
+```
+
+Now, lets create the Lambda function
+
+- 
