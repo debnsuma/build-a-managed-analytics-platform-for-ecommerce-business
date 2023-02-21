@@ -4,7 +4,7 @@ With the increase in popularity of online shopping, building an analytics platfo
 
 ## Introduction 
 
-Ecommerce analytics is the process of collecting data from all of the sources that affect a certain online business. Data Analysts or Business Analysts can then utilize this information to deduce changes in customer behavior and online shopping patterns. Ecommerce analytics spans the whole customer journey, starting from discovery through acquisition, conversion, and eventually retention and support.
+E-commerce analytics is the process of collecting data from all of the sources that affect a certain online business. Data Analysts or Business Analysts can then utilize this information to deduce changes in customer behavior and online shopping patterns. E-commerce analytics spans the whole customer journey, starting from discovery through acquisition, conversion, and eventually retention and support.
 
 In this blog, we will use an eCommerce dataset from Kaggle to simulate the logs of user purchases, product views, cart history, and the user’s journey on the online platform to create two analytical pipelines:
 
@@ -72,6 +72,90 @@ Lets build this application step by step. We are could to use an [AWS Cloud9 ins
 
 ### Download the dataset and clone the GirHub Repo 
 
+Clone the project and change it to the right directory:
+
+```bash
+
+# Project repository 
+git clone https://github.com/debnsuma/build-a-managed-analytics-platform-for-ecommerce-business.git
+
+cd build-a-managed-analytics-platform-for-ecommerce-business/
+
+# Create a folder to store the dataset 
+mkdir dataset 
+
+```
+
+Download the dataset from [here]((https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store)) and move the downloaded `2019-Nov.csv.zip` under the `dataset` folder  
+
+![img](/img/img4.png)
+
+Now, lets unzip the file and create a sample version of the dataset by just taking the first `1000` records from the file. 
+
+```bash
+
+cd dataset 
+
+unzip 2019-Nov.csv.zip
+
+cat 2019-Nov.csv | head -n 1000 > 202019-Nov-sample.csv
+
+```
+
+### Create an Amazon S3 bucket 
+
+Now we can create an Amazon S3 bucket and upload this dataset 
+
+- Name of the Bucket : `ecommerce-raw-us-east-1-dev` (replace this with your own `BUCKET_NAME`)
+
+```bash
+
+# Copy all the files in the S3 bucket 
+aws s3 cp 2019-Nov.csv.zip s3://<BUCKET_NAME>/ecomm_user_activity/p_year=2019/p_month=11/
+aws s3 cp 202019-Nov-sample.csv s3://<BUCKET_NAME>/ecomm_user_activity_sample/202019-Nov-sample.csv
+aws s3 cp 2019-Nov.csv s3://<BUCKET_NAME>/ecomm_user_activity_unconcompressed/p_year=2019/p_month=11/
+
+```
+
+### Create the Kinesis Data Stream 
+
+Now, lets create the first Kinesis data stream which we will be using as the incoming stream. Open the AWS Console and then:
+
+- Go to **Amazon Kinesis** 
+- Click on **Create data stream** 
+
+![](/img/img5.png)
+
+- Put `ecommerce-raw-user-activity-stream-1` as the Data stream name
+- Click on **Create data stream** 
+
+![](/img/img6.png)
 
 
+Lets create another Kinesis data stream which we are going to use later on. This time use the Data stream name as `ecommerce-raw-user-activity-stream-2` 
+
+![](/img/img7.png)
+
+### Start the e-commerce traffic 
+
+Now that we have our **Kinesis Data Stream** is ready we can start the e-commerce traffic using a stimulator. This stimulator (a `python script`) reads the `202019-Nov-sample.csv` (the dataset which we downloaded) line by line and send it to the Kinesis data stream. 
+
+But before you run the stimulator, just edit the `stream-data-app-simulation.py` with your *<BUCKET_NAME>*
+
+```python
+
+# S3 buckect details (UPDATE THIS)
+BUCKET_NAME = "ecommerce-raw-us-east-1-dev"       
+```
+
+Once its updated, we can run the stimulator. 
+
+```bash 
+# Go back to the project root directory 
+cd .. 
+
+# Run stimulator 
+python code/ecomm-simulation-app/stream-data-app-simulation.py 
+
+```
 

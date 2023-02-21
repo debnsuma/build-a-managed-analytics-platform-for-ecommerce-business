@@ -4,6 +4,10 @@ import json
 from time import sleep
 from datetime import datetime
 
+# S3 buckect details (UPDATE THIS <BUCKET_NAME>)
+BUCKET_NAME = "ecommerce-raw-us-east-1-dev"
+KEY = "ecomm_user_activity_sample/202019-Nov-sample.csv"
+
 # AWS Settings
 s3 = boto3.client('s3', region_name='us-east-1')
 s3_resource = boto3.resource('s3', region_name='us-east-1')
@@ -12,13 +16,6 @@ kinesis_client = boto3.client('kinesis', region_name='us-east-1')
 # Kinesis Details 
 kinesis_stream_name = 'ecommerce-raw-user-activity-stream-1'
 streaming_partition_key = 'category_id'
-
-# S3 buckect details 
-BUCKET_NAME = "ecommerce-raw-us-east-1-dev"
-KEY = "ecomm_user_activity_sample/202019-Nov-sample.csv"
-# KEY = "ecomm_user_activity_sample/2019-Nov.csv"
-
-
 
 # Function can be converted to Lambda;
 #   i.e. by iterating the S3-put events records; e.g. record['s3']['bucket']['name']
