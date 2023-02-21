@@ -67,3 +67,11 @@ At last we would leverage Amazon QuickSight to build a dashboard for visualizati
 
 ## Step by step walk through
 
+Lets build this application step by step. We are could to use an [AWS Cloud9 instance](https://aws.amazon.com/cloud9/), but it is not mandatory to use for this project. But if you wish to spin up an AWS Cloud9 instance, you may like to follow steps mentions [here](https://docs.aws.amazon.com/cloud9/latest/user-guide/create-environment-main.html) and proceed further. 
+
+
+### Download the dataset and clone the GirHub Repo 
+
+
+
+
