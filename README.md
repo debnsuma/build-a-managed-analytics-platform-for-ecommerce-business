@@ -298,4 +298,73 @@ aws s3 cp lambda-package.zip s3://ecommerce-raw-us-east-1-dev/src/lambda/
 
 Now, lets create the Lambda function
 
-- 
+- Open the **AWS Lambda** console 
+- Click on **Create function** button 
+
+![](/img/img17.png) 
+
+- Enter the Function name as `ecomm-detect-high-event-volume` 
+- Enter the Runtime as `Python 3.7`
+- Click on **Create function**  
+
+![](/img/img18.png) 
+
+Once the Lambda function is created we need to upload the code which we stored in Amazon S3. 
+
+![](/img/img19.png) 
+
+Provide the location of the Lambda code which we uploaded on Amazon S3 in the previous step and click on **Save**  
+
+![](/img/img20.png) 
+
+We need to provide adequate privileges to our Lambda function so that it can talk to Kinesis Data Streams, DynamoDB, CloudWatch and SNS. Lets now modify the IAM Role. 
+
+- Go to **Configuration** tab and them to **Permission** tab on the left
+- Click on the IAM Role 
+
+![](/img/img21.png) 
+
+Since this is just for this demo, we are adding Full Access, but its not at all recommended for production environment. We should always follow the least privilege principle. 
+
+![](/img/img22.png) 
+
+Lets create the a SNS Topic
+
+- Open the **Amazon SNS** console 
+- Click on **Create Topic** 
+- Select the Type as `Standard` 
+- Provide the Name as `ecomm-user-high-severity-incidents` 
+- Click on **Create Topic** 
+
+![](/img/img24.png) 
+
+Lets create a DynamoDB table 
+
+- Open the **Amazon DynamoDB** console 
+- Click on **Create table** 
+- Create the table with the following details
+
+    | Field | Value      | 
+    | :-------- | :------- |
+    | `Name`      | `ddb-ecommerce-tab-1` |
+    | `Partition Key`      | `ddb_partition_key` |
+    | `Secondary Key`      | `ddb_sort_key` |
+
+![](/img/img25.png) 
+
+Now, we can add the environment variables which are needed for the Lambda Function 
+
+![](/img/img23.png) 
+
+Following are the environment variables:
+
+| Key | Value      | 
+| :-------- | :------- |
+| `cloudwatch_metric`      | `ecomm-user-high-volume-events` |
+| `cloudwatch_namespace`      | `ecommerce-namespace-1` |
+| `dynamodb_control_table`      | `ddb-ecommerce-tab-1` |
+| `topic_arn`      | `<Your SNS Topic ARN>` |
+
+
+![](/img/img26.png) 
+
