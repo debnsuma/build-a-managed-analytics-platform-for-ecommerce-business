@@ -6,7 +6,7 @@ With the increase in popularity of online shopping, building an analytics platfo
 
 E-commerce analytics is the process of collecting data from all of the sources that affect a certain online business. Data Analysts or Business Analysts can then utilize this information to deduce changes in customer behavior and online shopping patterns. E-commerce analytics spans the whole customer journey, starting from discovery through acquisition, conversion, and eventually retention and support.
 
-In this blog, we will use an eCommerce dataset from Kaggle to simulate the logs of user purchases, product views, cart history, and the user’s journey on the online platform to create two analytical pipelines:
+In this two part blog, we will use an eCommerce dataset from Kaggle to simulate the logs of user purchases, product views, cart history, and the user’s journey on the online platform to create two analytical pipelines:
 
 **Batch Processing**  
 
@@ -26,6 +26,7 @@ The `Real-time processing` involves detecting Distributed denial of service (DDo
 
 ![Img1](/img/img1.png)
 
+This is the first part of the blog series, where we will focus on the **Real-time processing** data pipeline. 
 
 ## Dataset 
 
@@ -142,6 +143,7 @@ Now that we have our **Kinesis Data Stream** is ready we can start the e-commerc
 
 But before you run the stimulator, just edit the `stream-data-app-simulation.py` with your *<BUCKET_NAME>*
 
+
 ```python
 
 # S3 buckect details (UPDATE THIS)
@@ -157,6 +159,17 @@ cd ..
 # Run stimulator 
 pip install boto3
 python code/ecomm-simulation-app/stream-data-app-simulation.py 
+
+HttpStatusCode: 200 ,  electronics.smartphone
+HttpStatusCode: 200 ,  appliances.sewing_machine
+HttpStatusCode: 200 ,  
+HttpStatusCode: 200 ,  appliances.kitchen.washer
+HttpStatusCode: 200 ,  electronics.smartphone
+HttpStatusCode: 200 ,  computers.notebook
+HttpStatusCode: 200 ,  computers.notebook
+HttpStatusCode: 200 ,  
+HttpStatusCode: 200 ,  
+HttpStatusCode: 200 ,  electronics.smartphone
 
 ```
 
@@ -368,3 +381,56 @@ Following are the environment variables:
 
 ![](/img/img26.png) 
 
+## Show time 
+
+![](/img/img27.png) 
+
+So, now we are all done with the implementation, and its time to start generating the traffic using the `python script` which we created earlier. 
+
+
+
+```bash
+$ cd build-a-managed-analytics-platform-for-ecommerce-business 
+
+$ python code/ecomm-simulation-app/stream-data-app-simulation.py 
+HttpStatusCode: 200 ,  electronics.smartphone
+HttpStatusCode: 200 ,  appliances.sewing_machine
+HttpStatusCode: 200 ,  
+HttpStatusCode: 200 ,  appliances.kitchen.washer
+HttpStatusCode: 200 ,  electronics.smartphone
+HttpStatusCode: 200 ,  computers.notebook
+HttpStatusCode: 200 ,  computers.notebook
+HttpStatusCode: 200 ,  
+HttpStatusCode: 200 ,  
+HttpStatusCode: 200 ,  electronics.smartphone
+HttpStatusCode: 200 ,  furniture.living_room.sofa
+
+```
+
+We can also monitor this traffic using the **Apache Flink Dashboard** 
+
+- Open the **Amazon Kinesis Application** dashboard 
+- Select the Application, `ecomm-streaming-app-v1-sql-flink-ecomm-notebook-1-2HFDAA9HY` 
+- Click on `Open Apache Flink dashboard` 
+
+![](/img/img28.png) 
+
+Once you are on the `Open Apache Flink dashboard`
+
+- Click on `Running Jobs` and then click on the `Job Name` which is running 
+
+![](/img/img29.png) 
+
+And finally we can also see all the details of the users which are classified as a DDoS attack by the Flink Application in the `DynamoDB` table. 
+
+![](/img/img30.png) 
+
+You can let the stimulator run for next 5-10 mins while you explore and monitor all the components we have build in this whole data pipeline. 
+
+## Summary 
+
+In this blog post, we stimulate e-commerce shopping workload we used an eCommerce dataset to simulate the logs of user purchases, product views, cart history and the user’s journey on the online platform to create an Real time analytical platform .
+
+We used a `python` script to stimulate the real traffic using the dataset, used Amazon Kinesis as the incoming stream of data. And that data is being analyzed by Amazon Kinesis Data Analytics using Apache Flink using `SQL`, which involves detecting Distributed denial of service (DDoS) and bot attacks using AWS Lambda, DynamoDB, CloudWatch, and AWS SNS.
+
+In the second part of this blog series, we will dive deep and build the batch processing pipeline and build a dashboard using Amazon QuickSight, which will help us to get more insights about users. It will help us to know details like, who visits the ecommerce website more frequently, which are the top and bottom selling products, which are the top brands, and so on. 
