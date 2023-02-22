@@ -38,7 +38,7 @@ Each row in the file represents an event. All events are related to products and
 
 ## Architecture 
 
-**Batch Processing**  
+**Real-time Processing**  
 
 We are going to build an end to end data engineering pipeline where we will start with this [eCommerce behavior data from multi category store](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store) dataset as an input, which we will use to simulate or mimic real time e-commerce workload. 
 
@@ -52,7 +52,7 @@ So, the architecture would look like this.
 
 ![Img1](/img/img2.png)
 
-**Real-time Processing** 
+**Batch Processing** 
 
 If we look into the architecture diagram above, we will see that we are not storing the `raw` incoming data anywhere, whatever data is coming from the `stream1` we are passing it to Amazon Kinesis Data Analytics to analyze. And it might happen that later on we discover some bug in our `Apache Flink` application, and at that point, we can fix the bug and resume processing the data, but we can not process the old data (which was processed by our buggy `Apache Flink` application, since we have not stored the raw data anywhere which we can revisit)
 
