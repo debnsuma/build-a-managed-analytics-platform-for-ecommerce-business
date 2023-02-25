@@ -197,13 +197,16 @@ Once the **Zeppelin Dashboard** come up, click on `Import note` and import this 
 
 ![](img/img11.png)
 
-Open the `sql-flink-ecomm-notebook-1` notebook. We are going to use this Zeppelin notebook to create a **Flink Application** but before that lets go over this notebook and see what are we doing in this `Flink SQL code`
+Open the `sql-flink-ecomm-notebook-1` notebook. Flink interpreter supported by Apache Zeppelin notebook are Python, IPython, stream SQL, or batch SQL, and we are going to use `SQL` to write our code. There are many different ways to create a **Flink Application** but one of the easiest way is to use Zeppelin notebook. Let's look in this notebook and briefly discuss what are we doing here:
 
-- First we are create a `table` for the incoming source of data (which is the `ecommerce-raw-user-activity-stream-1` incoming stream) 
+
+- First we are creating a `table` for the incoming source of data (which is the `ecommerce-raw-user-activity-stream-1` incoming stream) 
 - Next we are creating another `table` for the filtered data (which is for the `ecommerce-raw-user-activity-stream-2` outgoing stream)
-- And finally we are putting the logic to simulate the **DDoSS** attack. We are essentially looking into the last 10 seconds of the data and grouping that data by `user_id` and if we notice more than 5 records, we are taking that `user_id` and the no. of records and pushing it to the `ecommerce-raw-user-activity-stream-2` out going stream. Since we are working within a dummy environment, we can set the threshold record to any other number (not just 5, it could be anything), but the idea is to simulate DDoS attack, and if we see same user (same `user_id`) is adding/viewing/placing lets say, 5 products in last 10 seconds, we can assume its a DDoS/BOT attack, as it naturally not that feasible. We are hardcoding it just for this demo purpose, but in real world this might be coming dynamically from a configuration file.
+- And finally we are putting the logic to simulate the **DDoSS** attack. We are essentially looking into the last 10 seconds of the data and grouping them by `user_id`. And if we notice more than 5 records within that 10 seconds, Flink will taking that `user_id` and the no. of records within that 10 seconds and will push that data to the `ecommerce-raw-user-activity-stream-2` outgoing stream. 
 
+![](/img/img-flink.png)
 
+Since we are working within a dummy environment, we can set the threshold record to any other number (not just 5). The idea is to simulate DDoS attack, and if we see the same user is adding/viewing/placing orders (lets say, `5 products in last 10 seconds, by user_id 1`), we can assume its a DDoS/BOT attack, as it naturally not that feasible. We are hardcoding it just for this demo purpose, but in real world this might be coming dynamically from a configuration file.
 
 ```sql
 
@@ -261,19 +264,19 @@ having count(1) > 5;
 
 ### Create the Apache Flink Application
 
-Now, that we have our notebook imported, we can create the **Flink Application** from the notebook directly. 
+Now, that we have our notebook imported, we can create the **Flink Application** from the notebook directly. And to do that: 
 
 - Click on `Actions for ecomm-streaming-app-v1` on the top right corner 
 
 ![](img/img12.png)
 
-- Click on `Build sql-flink-ecomm-notebook-1` and then click on `Build and export`. It will compile all the code, will create a ZIP file and would store on S3 
+- Click on `Build sql-flink-ecomm-notebook-1` > `Build and export`. It will compile all the code, will create a ZIP file and would store the file on S3 
 
 ![](img/img13.png)
 
 - And now we can deploy that application by simply clicking on `Actions for ecomm-streaming-app-v1` on the top right corner 
 
-- Click on `Deploy sql-flink-ecomm-notebook-1 as Kinesis Analytics application` and then clicking on `Deploy using AWS Console` 
+- Click on `Deploy sql-flink-ecomm-notebook-1 as Kinesis Analytics application` > `Deploy using AWS Console` 
 
 - Scroll down and click on `Save changes` 
 
@@ -281,17 +284,20 @@ Now, that we have our notebook imported, we can create the **Flink Application**
 
 This is the power of **Kinesis Data Analytics** just from a simple Zeppelin Notebook we can create a real world application without any hindrance. 
 
-- Finally we can start the application by clicking on **Run**. It might take couple of minutes to start the application so please wait till we see **Status** as `Running` 
+- Finally we can start the application by clicking on **Run**. It might take couple of minutes to start the application so lets wait till we see **Status** as `Running` 
 
-![](img/img15.png) 
+![](img/img15-1.png) 
 
 ### Alarming DDoS Attack 
 
-If we revisit our architecture, we will see that we are almost done with the **online processing**, the only thing which is pending is to create a Lambda function which will be triggered whenever there is a record enters the `ecommerce-raw-user-activity-stream-2` stream which will write that data to some **DynamoDB** table and can also send an **SNS** notification. 
+If we revisit our architecture, we will see that we are almost done with the **real-time/online processing**, the only thing which is pending is to create a Lambda function which will be triggered whenever there is a entry of a record inside the `ecommerce-raw-user-activity-stream-2` stream. And the Lambda function would perform the following:
+  - Write that record into a **DynamoDB** table  
+  - Send a **SNS** notification
+  - Update the **CloudWatch** metrics 
 
 ![](img/img16.png) 
 
-Let's first build the code for the Lambda function 
+Let's first build the code for the Lambda function, the code is available under [`code/serverless-app`](code/serverless-app/lambda_function.py) folder
 
 ```bash
 # Install the aws_kinesis_agg package
@@ -312,34 +318,34 @@ Now, lets create the Lambda function
 - Open the **AWS Lambda** console 
 - Click on **Create function** button 
 
-![](img/img17.png) 
+![](img/img17-1.png) 
 
 - Enter the Function name as `ecomm-detect-high-event-volume` 
 - Enter the Runtime as `Python 3.7`
 - Click on **Create function**  
 
-![](img/img18.png) 
+![](img/img18-1.png) 
 
-Once the Lambda function is created we need to upload the code which we stored in Amazon S3. 
+Once the Lambda function is created we need to upload the code which we stored in S3. 
 
-![](img/img19.png) 
+![](img/img19-1.png) 
 
-Provide the location of the Lambda code which we uploaded on Amazon S3 in the previous step and click on **Save**  
+Provide the location of the Lambda code and click on **Save**  
 
 ![](img/img20.png) 
 
-We need to provide adequate privileges to our Lambda function so that it can talk to Kinesis Data Streams, DynamoDB, CloudWatch and SNS. Lets now modify the IAM Role. 
+We need to provide adequate privileges to our Lambda function so that it can talk to Kinesis Data Streams, DynamoDB, CloudWatch and SNS. To modify the IAM Role: 
 
-- Go to **Configuration** tab and them to **Permission** tab on the left
-- Click on the IAM Role 
+- Go to **Configuration** tab > **Permission** tab on the left
+- Click on the **Role Name**
 
-![](img/img21.png) 
+![](img/img21-1.png) 
 
-Since this is just for this demo, we are adding Full Access, but its not at all recommended for production environment. We should always follow the least privilege principle. 
+Since this is just for the demo, we are adding `Full Access`, but its **NOT** recommended for production environment. We should always follow the *least privilege* principle to grant access to any user/resource. 
 
-![](img/img22.png) 
+![](img/img22-1.png) 
 
-Lets create the a SNS Topic
+Let's create the a SNS Topic
 
 - Open the **Amazon SNS** console 
 - Click on **Create Topic** 
@@ -347,9 +353,9 @@ Lets create the a SNS Topic
 - Provide the Name as `ecomm-user-high-severity-incidents` 
 - Click on **Create Topic** 
 
-![](img/img24.png) 
+![](img/img24-1.png) 
 
-Lets create a DynamoDB table 
+Let's create a DynamoDB table 
 
 - Open the **Amazon DynamoDB** console 
 - Click on **Create table** 
@@ -361,9 +367,9 @@ Lets create a DynamoDB table
     | `Partition Key`      | `ddb_partition_key` |
     | `Secondary Key`      | `ddb_sort_key` |
 
-![](img/img25.png) 
+![](img/img25-1.png) 
 
-Now, we can add the environment variables which are needed for the Lambda Function 
+Now, we can add the environment variables which are needed for the Lambda Function, these environment variables are used in the [`lambda function code`](code/serverless-app/lambda_function.py)
 
 ![](img/img23.png) 
 
@@ -377,20 +383,18 @@ Following are the environment variables:
 | `topic_arn`      | `<Your SNS Topic ARN>` |
 
 
-![](img/img26.png) 
+![](img/img26-1.png) 
 
 ## Show time 
 
 ![](img/img27.png) 
 
-So, now we are all done with the implementation, and its time to start generating the traffic using the `python script` which we created earlier. 
-
-
+So, now we are all done with the implementation, and its time to start generating the traffic using the `python script` which we created earlier, and see everything in action :) 
 
 ```bash
-$ cd build-a-managed-analytics-platform-for-ecommerce-business 
+cd build-a-managed-analytics-platform-for-ecommerce-business 
 
-$ python code/ecomm-simulation-app/stream-data-app-simulation.py 
+python code/ecomm-simulation-app/stream-data-app-simulation.py 
 HttpStatusCode: 200 ,  electronics.smartphone
 HttpStatusCode: 200 ,  appliances.sewing_machine
 HttpStatusCode: 200 ,  
@@ -411,19 +415,19 @@ We can also monitor this traffic using the **Apache Flink Dashboard**
 - Select the Application, `ecomm-streaming-app-v1-sql-flink-ecomm-notebook-1-2HFDAA9HY` 
 - Click on `Open Apache Flink dashboard` 
 
-![](img/img28.png) 
+![](img/img28-1.png) 
 
 Once you are on the `Open Apache Flink dashboard`
 
-- Click on `Running Jobs` and then click on the `Job Name` which is running 
+- Click on `Running Jobs` > `Job Name` which is running 
 
 ![](img/img29.png) 
 
 And finally we can also see all the details of the users which are classified as a DDoS attack by the Flink Application in the `DynamoDB` table. 
 
-![](img/img30.png) 
+![](img/img30-1.png) 
 
-You can let the stimulator run for next 5-10 mins while you explore and monitor all the components we have build in this whole data pipeline. 
+You can let the stimulator run for next 5-10 mins and can explore and monitor all the components we have build in this whole data pipeline. 
 
 ## Summary 
 
